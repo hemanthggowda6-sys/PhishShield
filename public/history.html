@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PhishShield — Scan History</title>
+    <link rel="stylesheet" href="/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+    <style>
+        .history-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 0.78rem;
+        }
+        .history-table th {
+            background: var(--surface);
+            color: var(--cyan);
+            padding: 12px 16px;
+            text-align: left;
+            letter-spacing: 0.1em;
+            font-size: 0.65rem;
+            text-transform: uppercase;
+            border-bottom: 1px solid var(--border-glow);
+        }
+        .history-table td {
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--border);
+            color: var(--text);
+            max-width: 300px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .history-table tr:hover td {
+            background: rgba(0,229,255,0.03);
+        }
+        .badge {
+            display: inline-block;
+            padding: 2px 8px;
+            font-size: 0.62rem;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            border: 1px solid;
+        }
+        .badge.high { color: var(--red); border-color: rgba(255,45,85,0.4); background: rgba(255,45,85,0.06); }
+        .badge.medium { color: var(--yellow); border-color: rgba(255,214,0,0.4); background: rgba(255,214,0,0.06); }
+        .badge.low { color: var(--green); border-color: rgba(0,255,136,0.4); background: rgba(0,255,136,0.06); }
+        .history-panel {
+            background: var(--panel);
+            border: 1px solid var(--border);
+            position: relative;
+            overflow-x: auto;
+        }
+        .history-panel::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0;
+            width: 60px; height: 2px;
+            background: var(--cyan);
+        }
+        .back-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 0.72rem;
+            letter-spacing: 0.1em;
+            color: var(--cyan);
+            text-decoration: none;
+            border: 1px solid var(--border-glow);
+            padding: 8px 16px;
+            margin-bottom: 24px;
+            transition: all 0.2s;
+        }
+        .back-btn:hover {
+            background: rgba(0,229,255,0.08);
+            border-color: var(--cyan);
+        }
+        .stats-row {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 1px;
+            background: var(--border);
+            margin-bottom: 24px;
+        }
+        .stat-cell {
+            background: var(--panel);
+            padding: 20px;
+            text-align: center;
+        }
+        .stat-num {
+            font-family: 'Orbitron', monospace;
+            font-size: 1.6rem;
+            font-weight: 900;
+            color: var(--cyan);
+            display: block;
+        }
+        .stat-label {
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 0.62rem;
+            color: var(--text-dim);
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            margin-top: 4px;
+            display: block;
+        }
+        .empty-state {
+            text-align: center;
+            padding: 48px;
+            font-family: 'Share Tech Mono', monospace;
+            color: var(--text-dim);
+            font-size: 0.85rem;
+        }
+        .page-title {
+            font-family: 'Orbitron', monospace;
+            font-size: 1.4rem;
+            font-weight: 700;
+            color: #fff;
+            margin-bottom: 8px;
+        }
+        .page-sub {
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 0.7rem;
+            color: var(--text-dim);
+            letter-spacing: 0.1em;
+            margin-bottom: 28px;
+        }
+        .section-label {
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 0.65rem;
+            letter-spacing: 0.2em;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            padding: 16px 16px 12px;
+            border-bottom: 1px solid var(--border);
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="logo-block">
+            <div class="logo-text">Phish<span>Shield</span></div>
+            <div class="logo-tag">Scan History</div>
+        </div>
+        <div class="status-dot">Systems Online</div>
+    </header>
+
+    <main>
+        <a href="/" class="back-btn">← Back to Scanner</a>
+
+        <div class="page-title">📊 Scan History</div>
+        <div class="page-sub">// Last 20 scans saved to MongoDB</div>
+
+        <!-- Stats -->
+        <div class="stats-row" id="stats-row">
+            <div class="stat-cell">
+                <span class="stat-num" id="total-scans">—</span>
+                <span class="stat-label">Total Scans</span>
+            </div>
+            <div class="stat-cell">
+                <span class="stat-num" id="high-risk">—</span>
+                <span class="stat-label">High Risk</span>
+            </div>
+            <div class="stat-cell">
+                <span class="stat-num" id="medium-risk">—</span>
+                <span class="stat-label">Suspicious</span>
+            </div>
+            <div class="stat-cell">
+                <span class="stat-num" id="low-risk">—</span>
+                <span class="stat-label">Safe</span>
+            </div>
+        </div>
+
+        <!-- Table -->
+        <div class="history-panel">
+            <div class="section-label">// Recent Scans</div>
+            <div id="table-container">
+                <div class="empty-state">⏳ Loading scan history...</div>
+            </div>
+        </div>
+    </main>
+
+    <footer>
+        <div class="footer-text">PhishShield · Scan History</div>
+        <div class="footer-apis">
+            <span class="api-badge">MongoDB Atlas</span>
+        </div>
+    </footer>
+
+    <script>
+        async function loadHistory() {
+            try {
+                const response = await fetch('/history');
+                const scans = await response.json();
+
+                if (scans.error) {
+                    document.getElementById('table-container').innerHTML = `
+                        <div class="empty-state">❌ ${scans.error}</div>
+                    `;
+                    return;
+                }
+
+                if (scans.length === 0) {
+                    document.getElementById('table-container').innerHTML = `
+                        <div class="empty-state">No scans yet. Go scan something!</div>
+                    `;
+                    return;
+                }
+
+                // Calculate stats
+                const high = scans.filter(s => s.riskLevel === 'High').length;
+                const medium = scans.filter(s => s.riskLevel === 'Medium').length;
+                const low = scans.filter(s => s.riskLevel === 'Low').length;
+
+                document.getElementById('total-scans').textContent = scans.length;
+                document.getElementById('high-risk').textContent = high;
+                document.getElementById('high-risk').style.color = high > 0 ? '#ff2d55' : '#00ff88';
+                document.getElementById('medium-risk').textContent = medium;
+                document.getElementById('medium-risk').style.color = medium > 0 ? '#ffd600' : '#00ff88';
+                document.getElementById('low-risk').textContent = low;
+
+                // Build table
+                const rows = scans.map(scan => {
+                    const date = new Date(scan.timestamp).toLocaleString('en-IN');
+                    const badgeClass = scan.riskLevel === 'High' ? 'high' : scan.riskLevel === 'Medium' ? 'medium' : 'low';
+                    const googleFlag = scan.googleFlagged ? '⚠️ Yes' : '✅ No';
+
+                    return `
+                        <tr>
+                            <td title="${scan.url}">${scan.url.substring(0, 45)}${scan.url.length > 45 ? '...' : ''}</td>
+                            <td><span class="badge ${badgeClass}">${scan.riskLevel}</span></td>
+                            <td style="color:${scan.riskScore >= 60 ? '#ff2d55' : scan.riskScore >= 30 ? '#ffd600' : '#00ff88'}">${scan.riskScore}/100</td>
+                            <td>${scan.vtMalicious || 0} / ${scan.vtTotal || 0}</td>
+                            <td>${googleFlag}</td>
+                            <td style="color:var(--text-dim)">${date}</td>
+                        </tr>
+                    `;
+                }).join('');
+
+                document.getElementById('table-container').innerHTML = `
+                    <table class="history-table">
+                        <thead>
+                            <tr>
+                                <th>URL Scanned</th>
+                                <th>Risk Level</th>
+                                <th>Score</th>
+                                <th>VT Engines</th>
+                                <th>Google Flagged</th>
+                                <th>Scanned At</th>
+                            </tr>
+                        </thead>
+                        <tbody>${rows}</tbody>
+                    </table>
+                `;
+
+            } catch (error) {
+                document.getElementById('table-container').innerHTML = `
+                    <div class="empty-state">❌ Could not load history. Is the server running?</div>
+                `;
+            }
+        }
+
+        // Load on page open
+        loadHistory();
+    </script>
+</body>
+</html>

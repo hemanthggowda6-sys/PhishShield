@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PhishShield 🛡️</title>
+    <link rel="stylesheet" href="/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+</head>
+<body>
+    <!-- Header -->
+    <header>
+        <div class="logo-block">
+            <div class="logo-text">Phish<span>Shield</span></div>
+            <div class="logo-tag">AI Threat Intelligence Analyzer</div>
+        </div>
+        <div class="status-dot">Systems Online</div>
+        <a href="/history.html" class="back-btn" style="font-family:'Share Tech Mono',monospace;font-size:0.7rem;color:var(--cyan);text-decoration:none;border:1px solid var(--border-glow);padding:8px 16px;">📊 History</a>
+
+    </header>
+
+    <main>
+        <!-- Hero -->
+        <div class="hero">
+            <div class="hero-eyebrow">// Real-time Threat Intelligence Engine</div>
+            <h1>Analyze. Detect. <em>Neutralize.</em></h1>
+            <p>Scan suspicious URLs, emails, phone numbers and SMS messages instantly.</p>
+        </div>
+
+        <!-- Tabs -->
+        <div class="tab-bar">
+            <button class="tab-btn active" onclick="switchTab('url')">🔗 URL</button>
+            <button class="tab-btn" onclick="switchTab('email')">📧 Email</button>
+            <button class="tab-btn" onclick="switchTab('phone')">📱 Phone</button>
+            <button class="tab-btn" onclick="switchTab('sms')">💬 SMS</button>
+        </div>
+
+        <!-- URL Tab -->
+        <div class="tab-content active" id="tab-url">
+            <div class="analyzer-card">
+                <div class="card-label">// URL THREAT SCANNER</div>
+                <div class="input-row">
+                    <div class="input-wrap">
+                        <span class="input-prefix">›_</span>
+                        <input type="text" id="urlInput" placeholder="https://suspicious-site.com"/>
+                    </div>
+                    <button class="analyze-btn" onclick="checkUrl()">
+                        <span>⬡ Analyze</span>
+                    </button>
+                </div>
+                <div class="examples">
+                    <span>Try:</span>
+                    <span class="example-url" onclick="loadExample('url','https://google.com')">google.com</span>
+                    <span class="example-url" onclick="loadExample('url','https://testsafebrowsing.appspot.com/s/phishing.html')">phishing test</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Email Tab -->
+        <div class="tab-content" id="tab-email">
+            <div class="analyzer-card">
+                <div class="card-label">// EMAIL THREAT SCANNER</div>
+                <div class="input-row">
+                    <div class="input-wrap">
+                        <span class="input-prefix">›_</span>
+                        <input type="text" id="emailInput" placeholder="suspicious@example.com"/>
+                    </div>
+                    <button class="analyze-btn" onclick="checkEmail()">
+                        <span>⬡ Analyze</span>
+                    </button>
+                </div>
+                <div class="examples">
+                    <span>Try:</span>
+                    <span class="example-url" onclick="loadExample('email','support@amaz0n-billing.ru')">amaz0n-billing.ru</span>
+                    <span class="example-url" onclick="loadExample('email','test@gmail.com')">gmail.com</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Phone Tab -->
+        <div class="tab-content" id="tab-phone">
+            <div class="analyzer-card">
+                <div class="card-label">// PHONE NUMBER SCANNER</div>
+                <div class="input-row">
+                    <div class="input-wrap">
+                        <span class="input-prefix">›_</span>
+                        <input type="text" id="phoneInput" placeholder="+91 9876543210"/>
+                    </div>
+                    <button class="analyze-btn" onclick="checkPhone()">
+                        <span>⬡ Analyze</span>
+                    </button>
+                </div>
+                <div class="examples">
+                    <span>Format:</span>
+                    <span class="example-url" onclick="loadExample('phone','+919876543210')">+919876543210</span>
+                    <span class="example-url" onclick="loadExample('phone','+14155552671')">US number</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- SMS Tab -->
+        <div class="tab-content" id="tab-sms">
+            <div class="analyzer-card">
+                <div class="card-label">// SMS TEXT SCANNER</div>
+                <div class="input-row" style="flex-direction:column">
+                    <textarea id="smsInput" placeholder="Paste suspicious SMS text here...
+Example: Congratulations! You have won Rs.50,000. Click here to claim: http://prize-claim.xyz"></textarea>
+                    <button class="analyze-btn" style="width:100%" onclick="checkSms()">
+                        <span>⬡ Analyze SMS</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Scanning Animation -->
+        <div class="scanning-overlay" id="scanning">
+            <div class="scan-animation">
+                <div class="scan-ring"></div>
+                <div class="scan-ring"></div>
+                <div class="scan-ring"></div>
+                <div class="scan-center">⬡</div>
+            </div>
+            <div class="scan-log" id="scan-log">
+                <div>Initializing threat scan...</div>
+            </div>
+        </div>
+
+        <!-- Results -->
+        <div class="results" id="results">
+            <div class="results-grid">
+                <!-- Risk Score -->
+                <div class="risk-panel" id="risk-panel">
+                    <div class="risk-label">// Risk Score</div>
+                    <div class="risk-gauge">
+                        <svg width="160" height="160" viewBox="0 0 160 160">
+                            <circle class="risk-gauge-track" cx="80" cy="80" r="70"/>
+                            <circle class="risk-gauge-fill" id="gauge-fill" cx="80" cy="80" r="70"/>
+                        </svg>
+                        <div class="risk-number">
+                            <div class="score" id="score-display">—</div>
+                            <div class="score-sub">/100</div>
+                        </div>
+                    </div>
+                    <div class="risk-verdict" id="verdict">—</div>
+                    <div class="risk-desc" id="risk-desc">Submit to begin</div>
+                </div>
+
+                <!-- Details Panel -->
+                <div class="feeds-panel">
+                    <div class="feeds-title" id="feeds-title">// Analysis Results</div>
+                    <div id="dynamic-results"></div>
+                    <div style="margin-top:16px">
+                        <div class="feeds-title">// Threat Indicators</div>
+                        <div id="threat-tags"></div>
+                    </div>
+                    <div style="margin-top:16px">
+                        <div class="feeds-title">// Reasons</div>
+                        <div id="reasons-list" class="vt-details"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Actions -->
+            <div class="action-bar">
+                <button class="action-btn secondary" onclick="clearResults()">⟳ New Scan</button>
+                <button class="action-btn primary" onclick="downloadPDF()">⬇ Download PDF</button>
+            </div>
+        </div>
+    </main>
+
+    <footer>
+        <div class="footer-text">PhishShield · Built for India's Digital Safety</div>
+        <div class="footer-apis">
+            <span class="api-badge">VirusTotal</span>
+            <span class="api-badge">Google Safe Browsing</span>
+            <span class="api-badge">IPQualityScore</span>
+        </div>
+    </footer>
+
+    <script src="/script.js"></script>
+</body>
+</html>
