@@ -1,12 +1,12 @@
-const dns = require('node:dns');
-dns.setServers(['1.1.1.1', '8.8.8.8']);
+// const dns = require('node:dns');
+// dns.setServers(['1.1.1.1', '8.8.8.8']);
 
 require('dotenv').config();
 const express = require('express');
 const axios = require('axios');
 const PDFDocument = require('pdfkit');
 const mongoose = require('mongoose');
-const Scan = require('./models/Scan');
+const Scan = require('/Scan');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
