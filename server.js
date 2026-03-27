@@ -6,7 +6,7 @@ const express = require('express');
 const axios = require('axios');
 const PDFDocument = require('pdfkit');
 const mongoose = require('mongoose');
-const Scan = require('/Scan');
+const Scan = require('./models/scan');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
