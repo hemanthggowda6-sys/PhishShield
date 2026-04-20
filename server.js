@@ -1,5 +1,5 @@
-// const dns = require('node:dns');
-// dns.setServers(['1.1.1.1', '8.8.8.8']);
+ const dns = require('node:dns');
+ dns.setServers(['1.1.1.1', '8.8.8.8']);
 
 require('dotenv').config();
 const express = require('express');
@@ -390,9 +390,12 @@ app.post('/check-phone', async (req, res) => {
 
     const apiKey = process.env.IPQS_API_KEY;
     try {
+        // Clean phone number - remove spaces and special chars
+        const cleanPhone = phone.replace(/\s+/g, '').replace(/[^\d+]/g, '');
         const response = await axios.get(
-            `https://www.ipqualityscore.com/api/json/phone/${apiKey}/${phone}`
-        );
+              `https://www.ipqualityscore.com/api/json/phone/${apiKey}/${cleanPhone}?country[]=IN&strictness=1`
+);
+        
         const data = response.data;
 
         let riskScore = 0;
@@ -424,7 +427,7 @@ app.post('/check-phone', async (req, res) => {
         res.json({
             phone, riskScore, riskLevel,
             valid: data.valid,
-            fraudScore: data.fraud_score,
+            fraudScore: data.fraud_score || 0,
             carrier: data.carrier || 'Unknown',
             lineType: data.line_type || 'Unknown',
             country: data.country || 'Unknown',
