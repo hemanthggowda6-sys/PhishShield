@@ -397,6 +397,7 @@ app.post('/check-phone', async (req, res) => {
 );
         
         const data = response.data;
+        console.log('IPQS Phone Response:', JSON.stringify(data));
 
         let riskScore = 0;
         let reasons = [];
