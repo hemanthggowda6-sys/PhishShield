@@ -383,60 +383,91 @@ app.post('/check-email', async (req, res) => {
 });
 
 // ── Phone Check Route ───────────────────────────────────────────
+// ── Phone Check Route ───────────────────────────────────────────
 app.post('/check-phone', async (req, res) => {
     const { phone } = req.body;
     if (!phone) return res.status(400).json({ error: 'Please enter a phone number' });
     console.log(`📱 Checking phone: ${phone}`);
 
-    const apiKey = process.env.IPQS_API_KEY;
+    // Clean phone number
+    const cleanPhone = phone.replace(/\s+/g, '').replace(/[^\d+]/g, '');
+
     try {
-        // Clean phone number - remove spaces and special chars
-        const cleanPhone = phone.replace(/\s+/g, '').replace(/[^\d+]/g, '');
-        const response = await axios.get(
-              `https://www.ipqualityscore.com/api/json/phone/${apiKey}/${cleanPhone}?country[]=IN&strictness=1`
-);
-        
-        const data = response.data;
-        console.log('IPQS Phone Response:', JSON.stringify(data));
+        // ── NumVerify for validation ────────────────────────────
+        const numVerifyKey = process.env.NUMVERIFY_API_KEY;
+        const numVerifyResponse = await axios.get(
+            `http://apilayer.net/api/validate?access_key=${numVerifyKey}&number=${cleanPhone}&country_code=IN&format=1`
+        );
+        const numData = numVerifyResponse.data;
+        console.log('NumVerify Response:', JSON.stringify(numData));
+
+        // ── IPQS for fraud score ────────────────────────────────
+        const ipqsKey = process.env.IPQS_API_KEY;
+        let fraudScore = 0;
+        let spammer = false;
+        let risky = false;
+
+        try {
+            const ipqsResponse = await axios.get(
+                `https://www.ipqualityscore.com/api/json/phone/${ipqsKey}/${cleanPhone}?strictness=1`
+            );
+            const ipqsData = ipqsResponse.data;
+            if (ipqsData.success) {
+                fraudScore = ipqsData.fraud_score || 0;
+                spammer = ipqsData.spammer || false;
+                risky = ipqsData.risky || false;
+            }
+        } catch (e) {
+            console.log('IPQS skipped:', e.message);
+        }
 
         let riskScore = 0;
         let reasons = [];
 
-        if (data.fraud_score > 85) {
+        // NumVerify results
+        if (!numData.valid) {
+            riskScore += 20;
+            reasons.push('Invalid phone number format');
+        }
+
+        // Fraud score from IPQS
+        if (fraudScore > 85) {
             riskScore += 50;
             reasons.push('Very high fraud score');
-        } else if (data.fraud_score > 60) {
+        } else if (fraudScore > 60) {
             riskScore += 30;
             reasons.push('High fraud score');
         }
-        if (data.spammer) {
+
+        if (spammer) {
             riskScore += 40;
             reasons.push('Known spammer number');
         }
-        if (data.risky) {
+
+        if (risky) {
             riskScore += 20;
             reasons.push('Risky phone number');
-        }
-        if (!data.valid) {
-            riskScore += 20;
-            reasons.push('Invalid phone number');
         }
 
         riskScore = Math.min(riskScore, 100);
         const riskLevel = riskScore < 30 ? 'Low' : riskScore < 60 ? 'Medium' : 'High';
 
         res.json({
-            phone, riskScore, riskLevel,
-            valid: data.valid,
-            fraudScore: data.fraud_score || 0,
-            carrier: data.carrier || 'Unknown',
-            lineType: data.line_type || 'Unknown',
-            country: data.country || 'Unknown',
+            phone: cleanPhone,
+            riskScore,
+            riskLevel,
+            valid: numData.valid,
+            fraudScore,
+            carrier: numData.carrier || 'Unknown',
+            lineType: numData.line_type || numData.type || 'Unknown',
+            country: numData.country_name || numData.country_code || 'Unknown',
+            location: numData.location || 'Unknown',
             reasons,
             message: riskScore >= 30
                 ? '⚠️ SUSPICIOUS NUMBER: ' + reasons.join('. ')
                 : '✅ PHONE NUMBER LOOKS SAFE'
         });
+
     } catch (error) {
         console.log('Phone check error:', error.message);
         res.status(500).json({ error: 'Could not check phone: ' + error.message });
