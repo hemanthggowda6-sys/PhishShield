@@ -85,11 +85,11 @@ async function checkIPQS(url) {
         );
         const data = response.data;
         return {
-            phishing: data.phishing,
-            malware: data.malware,
-            suspicious: data.suspicious,
-            riskScore: data.risk_score,
-            spamming: data.spamming,
+            phishing: data.phishing || false,
+            malware: data.malware || false,
+            suspicious: data.suspicious || false,
+            riskScore: data.risk_score || 0,
+            spamming: data.spamming || false,
             domainAge: data.domain_age?.human || 'Unknown',
             country: data.country_code || 'Unknown'
         };
@@ -265,11 +265,12 @@ function calculateRiskScore(gsbResult, vtResult, ipqsResult, patternResult) {
         }
     }
 
-    // Pattern Detection (weight: 30)
-    if (patternResult && patternResult.score > 0) {
-        score += Math.round(patternResult.score * 0.3);
-        reasons.push(...patternResult.reasons);
-    }
+    
+    // Pattern Detection (weight: 60)
+if (patternResult && patternResult.score > 0) {
+    score += Math.round(patternResult.score * 0.6);
+    reasons.push(...patternResult.reasons);
+}
 
     return { score: Math.min(score, 100), reasons };
 }
@@ -382,7 +383,7 @@ app.post('/check-email', async (req, res) => {
     }
 });
 
-// ── Phone Check Route ───────────────────────────────────────────
+
 // ── Phone Check Route ───────────────────────────────────────────
 app.post('/check-phone', async (req, res) => {
     const { phone } = req.body;
