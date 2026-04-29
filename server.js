@@ -329,44 +329,117 @@ app.post('/check-email', async (req, res) => {
     if (!email) return res.status(400).json({ error: 'Please enter an email' });
     console.log(`📧 Checking email: ${email}`);
 
+    let riskScore = 0;
+    let reasons = [];
+
     try {
-        const abstractKey = process.env.ABSTRACT_API_KEY;
-        const response = await axios.get(
-    `https://emailvalidation.abstractapi.com/v1/`,
-    {
-        params: {
-            api_key: abstractKey,
-            email: email
-        }
-    }
-);
+        const emailLower = email.toLowerCase();
+        const parts = emailLower.split('@');
 
-        let riskScore = 0;
-        let reasons = [];
+        if (parts.length !== 2) {
+            return res.json({
+                email, riskScore: 100, riskLevel: 'High',
+                valid: false, disposable: false, fraudScore: 100,
+                domain: 'unknown', reasons: ['Invalid email format'],
+                message: '⚠️ INVALID EMAIL FORMAT'
+            });
+        }
 
-        if (data.deliverability === 'UNDELIVERABLE') {
-            riskScore += 40;
-            reasons.push('Email is undeliverable');
-        }
-        if (data.is_disposable_email?.value) {
-            riskScore += 40;
-            reasons.push('Disposable/temporary email');
-        }
-        if (!data.is_valid_format?.value) {
+        const username = parts[0];
+        const domain = parts[1];
+        const domainWithoutTld = domain.split('.')[0];
+
+        // 1. Check email format
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(email)) {
             riskScore += 30;
             reasons.push('Invalid email format');
         }
-        if (data.is_catchall_email?.value) {
-            riskScore += 10;
-            reasons.push('Catch-all email domain');
+
+        // 2. Disposable email domains
+        const disposableDomains = [
+            'mailinator.com', 'tempmail.com', 'guerrillamail.com',
+            'throwaway.email', 'fakeinbox.com', 'yopmail.com',
+            'sharklasers.com', 'guerrillamailblock.com', 'grr.la',
+            'guerrillamail.info', 'spam4.me', 'trashmail.com',
+            'dispostable.com', 'mailnull.com', 'spamgourmet.com',
+            'temp-mail.org', 'discard.email', 'maildrop.cc',
+            'getnada.com', 'tempinbox.com', 'throwam.com',
+            'spamherelots.com', 'mailscrap.com', 'spamhereplease.com'
+        ];
+
+        if (disposableDomains.includes(domain)) {
+            riskScore += 50;
+            reasons.push('Disposable/temporary email domain');
         }
-        if (!data.is_mx_found?.value) {
+
+        // 3. Suspicious TLDs
+        const suspiciousTlds = ['.ru', '.tk', '.ml', '.ga', '.cf',
+            '.gq', '.xyz', '.pw', '.top', '.click', '.loan', '.work'];
+        if (suspiciousTlds.some(tld => domain.endsWith(tld))) {
             riskScore += 30;
-            reasons.push('No mail server found for domain');
+            reasons.push('Suspicious domain extension');
         }
-        if (data.is_free_email?.value === false && data.deliverability !== 'DELIVERABLE') {
+
+        // 4. Known brands with fake domains
+        const knownBrands = [
+            'paypal', 'amazon', 'google', 'facebook', 'apple',
+            'microsoft', 'netflix', 'instagram', 'twitter', 'hdfc',
+            'icici', 'sbi', 'axis', 'paytm', 'phonepe', 'flipkart'
+        ];
+
+        // Number substitutions check
+        let normalizedDomain = domainWithoutTld
+            .replace(/0/g, 'o').replace(/1/g, 'i')
+            .replace(/3/g, 'e').replace(/4/g, 'a')
+            .replace(/5/g, 's');
+
+        const impersonatedBrand = knownBrands.find(brand =>
+            normalizedDomain.includes(brand) && !domainWithoutTld.includes(brand)
+        );
+
+        if (impersonatedBrand) {
+            riskScore += 40;
+            reasons.push(`Possible brand impersonation: ${impersonatedBrand}`);
+        }
+
+        // 5. Brand in domain with suspicious additions
+        const brandInDomain = knownBrands.find(brand =>
+            domainWithoutTld.includes(brand)
+        );
+
+        if (brandInDomain) {
+            const legitDomains = [
+                'gmail.com', 'yahoo.com', 'outlook.com',
+                'hotmail.com', 'amazon.com', 'google.com',
+                'apple.com', 'microsoft.com', 'paypal.com',
+                'facebook.com', 'netflix.com'
+            ];
+            if (!legitDomains.includes(domain)) {
+                riskScore += 35;
+                reasons.push(`Brand "${brandInDomain}" used in suspicious domain`);
+            }
+        }
+
+        // 6. Too many hyphens in domain
+        const hyphenCount = (domain.match(/-/g) || []).length;
+        if (hyphenCount >= 2) {
             riskScore += 20;
-            reasons.push('Suspicious custom domain');
+            reasons.push('Too many hyphens in email domain');
+        }
+
+        // 7. Suspicious keywords in username
+        const suspiciousUsernames = [
+            'support', 'admin', 'noreply', 'no-reply',
+            'billing', 'account', 'verify', 'secure',
+            'update', 'alert', 'service', 'help'
+        ];
+        const hasSuspiciousUsername = suspiciousUsernames.some(
+            word => username.includes(word)
+        );
+        if (hasSuspiciousUsername && riskScore > 0) {
+            riskScore += 15;
+            reasons.push('Suspicious username pattern');
         }
 
         riskScore = Math.min(riskScore, 100);
@@ -376,17 +449,16 @@ app.post('/check-email', async (req, res) => {
             email,
             riskScore,
             riskLevel,
-            valid: data.deliverability === 'DELIVERABLE',
-            disposable: data.is_disposable_email?.value || false,
-            fraudScore: data.quality_score ? Math.round((1 - data.quality_score) * 100) : 0,
-            domain: email.split('@')[1],
-            deliverability: data.deliverability,
-            isFreeEmail: data.is_free_email?.value,
+            valid: riskScore < 50,
+            disposable: disposableDomains.includes(domain),
+            fraudScore: riskScore,
+            domain,
             reasons,
             message: riskScore >= 30
                 ? '⚠️ SUSPICIOUS EMAIL: ' + reasons.join('. ')
                 : '✅ EMAIL LOOKS SAFE'
         });
+
     } catch (error) {
         console.log('Email check error:', error.message);
         res.status(500).json({ error: 'Could not check email: ' + error.message });
