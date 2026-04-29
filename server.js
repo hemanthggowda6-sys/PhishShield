@@ -329,49 +329,55 @@ app.post('/check-email', async (req, res) => {
     if (!email) return res.status(400).json({ error: 'Please enter an email' });
     console.log(`📧 Checking email: ${email}`);
 
-    const apiKey = process.env.IPQS_API_KEY;
     try {
+        const abstractKey = process.env.ABSTRACT_API_KEY;
         const response = await axios.get(
-            `https://www.ipqualityscore.com/api/json/email/${apiKey}/${email}`
+            `https://emailvalidation.abstractapi.com/v1/?api_key=${abstractKey}&email=${email}`
         );
         const data = response.data;
+        console.log('Abstract Email Response:', JSON.stringify(data));
 
         let riskScore = 0;
         let reasons = [];
 
-        if (data.disposable) {
+        if (data.deliverability === 'UNDELIVERABLE') {
             riskScore += 40;
-            reasons.push('Disposable/temporary email address');
+            reasons.push('Email is undeliverable');
         }
-        if (data.fraud_score > 85) {
+        if (data.is_disposable_email?.value) {
             riskScore += 40;
-            reasons.push('Very high fraud score');
-        } else if (data.fraud_score > 60) {
-            riskScore += 20;
-            reasons.push('High fraud score');
+            reasons.push('Disposable/temporary email');
         }
-        if (!data.valid) {
+        if (!data.is_valid_format?.value) {
             riskScore += 30;
-            reasons.push('Invalid email address');
+            reasons.push('Invalid email format');
         }
-        if (data.honeypot) {
+        if (data.is_catchall_email?.value) {
+            riskScore += 10;
+            reasons.push('Catch-all email domain');
+        }
+        if (!data.is_mx_found?.value) {
             riskScore += 30;
-            reasons.push('Known spam honeypot');
+            reasons.push('No mail server found for domain');
         }
-        if (data.spam_trap_score === 'high') {
+        if (data.is_free_email?.value === false && data.deliverability !== 'DELIVERABLE') {
             riskScore += 20;
-            reasons.push('Spam trap detected');
+            reasons.push('Suspicious custom domain');
         }
 
         riskScore = Math.min(riskScore, 100);
         const riskLevel = riskScore < 30 ? 'Low' : riskScore < 60 ? 'Medium' : 'High';
 
         res.json({
-            email, riskScore, riskLevel,
-            valid: data.valid,
-            disposable: data.disposable,
-            fraudScore: data.fraud_score,
-            domain: data.domain,
+            email,
+            riskScore,
+            riskLevel,
+            valid: data.deliverability === 'DELIVERABLE',
+            disposable: data.is_disposable_email?.value || false,
+            fraudScore: data.quality_score ? Math.round((1 - data.quality_score) * 100) : 0,
+            domain: email.split('@')[1],
+            deliverability: data.deliverability,
+            isFreeEmail: data.is_free_email?.value,
             reasons,
             message: riskScore >= 30
                 ? '⚠️ SUSPICIOUS EMAIL: ' + reasons.join('. ')
