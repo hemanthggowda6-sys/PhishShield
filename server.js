@@ -332,10 +332,14 @@ app.post('/check-email', async (req, res) => {
     try {
         const abstractKey = process.env.ABSTRACT_API_KEY;
         const response = await axios.get(
-            `https://emailvalidation.abstractapi.com/v1/?api_key=${abstractKey}&email=${email}`
-        );
-        const data = response.data;
-        console.log('Abstract Email Response:', JSON.stringify(data));
+    `https://emailvalidation.abstractapi.com/v1/`,
+    {
+        params: {
+            api_key: abstractKey,
+            email: email
+        }
+    }
+);
 
         let riskScore = 0;
         let reasons = [];
